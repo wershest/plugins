@@ -204,8 +204,25 @@
     return;
   }
   NSString *identifier = call.arguments;
-  SKPaymentTransaction *transaction =
-      [self.paymentQueueHandler.transactions objectForKey:identifier];
+  NSArray<SKPaymentTransaction *> *transactions =
+      [self.paymentQueueHandler getUnfinishedTransactions];
+  
+  
+   SKPaymentTransaction *transaction =
+       [self.paymentQueueHandler.transactions objectForKey:identifier];
+  
+  if (!transaction) {
+    for(SKPaymentTransaction *atrans in transactions) {    
+      if([atrans.payment.productIdentifier isEqualToString:identifier]) {
+        if(atrans.transactionState != SKPaymentTransactionStatePurchasing && atrans.transactionState != SKPaymentTransactionStateDeferred) {
+          //transaction = atrans;
+          //break;
+          [self.paymentQueueHandler finishTransaction:atrans];
+        }      
+      }
+    }
+  }
+  
   if (!transaction) {
     result([FlutterError
         errorWithCode:@"storekit_platform_invalid_transaction"
