@@ -4,11 +4,13 @@
 
 import 'dart:async';
 import 'dart:io';
+import '../../store_kit_wrappers.dart';
 import 'app_store_connection.dart';
 import 'google_play_connection.dart';
 import 'product_details.dart';
 import 'package:flutter/foundation.dart';
 import 'package:in_app_purchase/billing_client_wrappers.dart';
+import '../store_kit_wrappers/sk_payment_transaction_wrappers.dart';
 import './purchase_details.dart';
 
 export 'package:in_app_purchase/billing_client_wrappers.dart';
@@ -42,6 +44,11 @@ abstract class InAppPurchaseConnection {
 
   Stream<List<PurchaseDetails>> _purchaseUpdatedStream;
 
+  Stream<List<String>> get transactionRemovedStream =>
+      _getTransactionRemovedStream();
+
+  Stream<List<String>> _transactionRemovedStream;
+
   Stream<List<PurchaseDetails>> _getStream() {
     if (_purchaseUpdatedStream != null) {
       return _purchaseUpdatedStream;
@@ -58,6 +65,18 @@ abstract class InAppPurchaseConnection {
           'InAppPurchase plugin only works on Android and iOS.');
     }
     return _purchaseUpdatedStream;
+  }
+
+  Stream<List<String>> _getTransactionRemovedStream() {
+    if (_transactionRemovedStream != null) {
+      return _transactionRemovedStream;
+    }
+
+    if (Platform.isIOS) {
+      _transactionRemovedStream =
+          AppStoreConnection.instance.transactionRemovedStream;
+    }
+    return _transactionRemovedStream;
   }
 
   /// Whether pending purchase is enabled.

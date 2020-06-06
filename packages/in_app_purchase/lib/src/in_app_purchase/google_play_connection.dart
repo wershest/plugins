@@ -39,6 +39,8 @@ class GooglePlayConnection
       _purchaseUpdatedController.stream;
   static StreamController<List<PurchaseDetails>> _purchaseUpdatedController;
 
+  Stream<List<String>> get transactionRemovedStream => null;
+
   @visibleForTesting
   final BillingClient billingClient;
 

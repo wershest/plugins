@@ -26,6 +26,9 @@ class AppStoreConnection implements InAppPurchaseConnection {
   Stream<List<PurchaseDetails>> get purchaseUpdatedStream =>
       _observer.purchaseUpdatedController.stream;
 
+  Stream<List<String>> get transactionRemovedStream =>
+      _observer.transactionRemovedController.stream;
+
   static SKTransactionObserverWrapper get observer => _observer;
 
   static AppStoreConnection _getOrCreateInstance() {
@@ -35,7 +38,8 @@ class AppStoreConnection implements InAppPurchaseConnection {
 
     _instance = AppStoreConnection();
     _skPaymentQueueWrapper = SKPaymentQueueWrapper();
-    _observer = _TransactionObserver(StreamController.broadcast());
+    _observer = _TransactionObserver(
+        StreamController.broadcast(), StreamController.broadcast());
     _skPaymentQueueWrapper.setTransactionObserver(observer);
     return _instance;
   }
@@ -177,12 +181,14 @@ class AppStoreConnection implements InAppPurchaseConnection {
 
 class _TransactionObserver implements SKTransactionObserverWrapper {
   final StreamController<List<PurchaseDetails>> purchaseUpdatedController;
+  final StreamController<List<String>> transactionRemovedController;
 
   Completer<List<SKPaymentTransactionWrapper>> _restoreCompleter;
   List<SKPaymentTransactionWrapper> _restoredTransactions;
   String _receiptData;
 
-  _TransactionObserver(this.purchaseUpdatedController);
+  _TransactionObserver(
+      this.purchaseUpdatedController, this.transactionRemovedController);
 
   Future<List<SKPaymentTransactionWrapper>> getRestoredTransactions(
       {@required SKPaymentQueueWrapper queue, String applicationUserName}) {
@@ -230,7 +236,10 @@ class _TransactionObserver implements SKTransactionObserverWrapper {
     }).toList());
   }
 
-  void removedTransactions({List<SKPaymentTransactionWrapper> transactions}) {}
+  void removedTransactions({List<SKPaymentTransactionWrapper> transactions}) {
+    transactionRemovedController
+        .add(transactions.map((e) => e.transactionIdentifier).toList());
+  }
 
   /// Triggered when there is an error while restoring transactions.
   void restoreCompletedTransactionsFailed({SKError error}) {

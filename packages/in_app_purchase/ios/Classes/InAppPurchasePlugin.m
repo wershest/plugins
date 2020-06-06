@@ -91,6 +91,10 @@
     [self addPayment:call result:result];
   } else if ([@"-[InAppPurchasePlugin finishTransaction:result:]" isEqualToString:call.method]) {
     [self finishTransaction:call result:result];
+  } else if ([@"-[InAppPurchasePlugin finishAllTransactions:result:]" isEqualToString:call.method]) {
+    [self finishAllTransactions:call result:result];
+  } else if ([@"-[InAppPurchasePlugin finishTransactionById:result:]" isEqualToString:call.method]) {
+    [self finishTransactionById:call result:result];
   } else if ([@"-[InAppPurchasePlugin restoreTransactions:result:]" isEqualToString:call.method]) {
     [self restoreTransactions:call result:result];
   } else if ([@"-[InAppPurchasePlugin retrieveReceiptData:result:]" isEqualToString:call.method]) {
@@ -232,6 +236,65 @@
                                            @"purchasing, the transactionIdentifier will be "
                                            @"nil(null).",
                                            transaction.transactionIdentifier]
+              details:call.arguments]);
+    return;
+  }
+  @try {
+    // finish transaction will throw exception if the transaction type is purchasing. Notify dart
+    // about this exception.
+    [self.paymentQueueHandler finishTransaction:transaction];
+  } @catch (NSException *e) {
+    result([FlutterError errorWithCode:@"storekit_finish_transaction_exception"
+                               message:e.name
+                               details:e.description]);
+    return;
+  }
+  result(nil);
+}
+
+- (void)finishAllTransactions:(FlutterMethodCall *)call result:(FlutterResult)result {
+  NSArray<SKPaymentTransaction *> *transactions =
+      [self.paymentQueueHandler getUnfinishedTransactions];  
+  
+  for(SKPaymentTransaction *atrans in transactions) {    
+    if(atrans.transactionState != SKPaymentTransactionStatePurchasing && atrans.transactionState != SKPaymentTransactionStateDeferred) {
+      [self.paymentQueueHandler finishTransaction:atrans];
+    }      
+  }
+    
+  result(nil);
+}
+
+- (void)finishTransactionById:(FlutterMethodCall *)call result:(FlutterResult)result {
+  if (![call.arguments isKindOfClass:[NSString class]]) {
+    result([FlutterError errorWithCode:@"storekit_invalid_argument"
+                               message:@"Argument type of finishTransaction is not a string."
+                               details:call.arguments]);
+    return;
+  }
+
+  NSString *identifier = call.arguments;
+  NSArray<SKPaymentTransaction *> *transactions =
+      [self.paymentQueueHandler getUnfinishedTransactions];
+  SKPaymentTransaction *transaction = nil;
+  for(SKPaymentTransaction *atrans in transactions) {    
+    if([atrans.transactionIdentifier isEqualToString:identifier]) {
+      if(atrans.transactionState != SKPaymentTransactionStatePurchasing && atrans.transactionState != SKPaymentTransactionStateDeferred) {
+        transaction = atrans;
+        break;        
+      }      
+    }
+  }
+  
+  if (!transaction) {
+    result([FlutterError
+        errorWithCode:@"storekit_platform_invalid_transaction"
+              message:[NSString
+                          stringWithFormat:@"The transaction with transactionIdentifer:%@ does not "
+                                           @"exist. Note that if the transactionState is "
+                                           @"purchasing, the transactionIdentifier will be "
+                                           @"nil(null).",
+                                           identifier]
               details:call.arguments]);
     return;
   }
